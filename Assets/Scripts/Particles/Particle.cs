@@ -24,4 +24,14 @@ public class Particle
         position += velocity * deltaTime;
         
     }
+
+    public void ReflectVertBound()
+    {
+        velocity.x = -velocity.x;
+    }
+
+    public void ReflectHoriBound()
+    {
+        velocity.y = -velocity.y;
+    }
 }
