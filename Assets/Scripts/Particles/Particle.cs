@@ -9,8 +9,9 @@ public class Particle
     public float radius;
     public bool isActive;
     public float mass;
+    public float dampingFactor;
 
-    public Particle(Vector2 pos, Vector2 vel, float rad, Color col, float m)
+    public Particle(Vector2 pos, Vector2 vel, float rad, Color col, float m, float DF)
     {
         position = pos;
         velocity = vel;
@@ -18,6 +19,7 @@ public class Particle
         color = col;
         isActive = true;
         mass = m;
+        dampingFactor = DF;
     }
 
     public void Update(float deltaTime)
@@ -35,12 +37,12 @@ public class Particle
 
     public void ReflectVertBound()
     {
-        velocity.x = -velocity.x;
+        velocity.x = -velocity.x * dampingFactor;
     }
 
     public void ReflectHoriBound()
     {
-        velocity.y = -velocity.y;
+        velocity.y = -velocity.y * dampingFactor;
     }
 
     public void ApplyForce(Vector2 Force)

@@ -14,12 +14,19 @@ public class ParticleManager : MonoBehaviour
 
     public bool EnableGravity = true;
 
+    public int NumParticles;
+
     Vector2 gravity = new Vector2(0, -9.81f);
 
     public void AddParticle(Particle particle)
     {
 
         particles.Add(particle);
+    }
+
+    public void RemovePartice (int i)
+    {
+        particles.RemoveAt(i);
     }
 
     public List<Particle> GetParticles()
@@ -32,8 +39,9 @@ public class ParticleManager : MonoBehaviour
         float dt = Time.deltaTime;
         circleRenderer.BeginFrame();
 
-        foreach (var particle in particles)
+        for (int i = 0; i < particles.Count; i++)
         {
+            Particle particle = particles[i];
 
             if (particle.isActive)
             {
@@ -46,7 +54,23 @@ public class ParticleManager : MonoBehaviour
 
                 checkBoundaryCollision(particle);
 
+                for (int k = i + 1; k < particles.Count; k++)
+                {
+                    Particle compParticle = particles[k];
+
+                    checkParticleCollision(particle, compParticle);
+
+                    Debug.Log("particle speed: " + particle.velocity.x);
+                }
+
+                if (particle.velocity.magnitude < 0.1f)
+                {
+                    particle.velocity = Vector2.zero;
+                }
+
                 circleRenderer.DrawCircle(particle.position, particle.radius, particle.color);
+
+                checkNumParticles();
             }
         }
 
@@ -58,10 +82,13 @@ public class ParticleManager : MonoBehaviour
     {
         for (int i = 0; i < numInitialParticles; i++)
         {
-            Vector2 pos = new Vector2(0, 0);
+            Vector2 pos = Random.insideUnitCircle*5f;
             Vector2 vel = Random.insideUnitCircle*5f;
-            particles.Add(new Particle(pos, vel, 0.5f, Random.ColorHSV(), 1));
+            float rad = Random.Range(0.2f, 2f);
+            particles.Add(new Particle(pos, vel, rad, Random.ColorHSV(), 1, 0.8f));
         }
+
+        NumParticles =  numInitialParticles;
     }
 
     public void initialise(Vector2 screenBounds)
@@ -102,23 +129,81 @@ public class ParticleManager : MonoBehaviour
         }
     }
 
-    private void ElasticCollion(Particle particle1, Particle particle2, Particle* p1, Particle* p2)
+    private void ElasticCollion(Particle particle1, Particle particle2)
+    {
+        Vector2 delta = particle1.position - particle2.position;
+        float distance = delta.magnitude;
+
+        if (distance == 0f) return; // Prevent division by zero
+
+        Vector2 normal = delta.normalized;
+        Vector2 relativeVelocity = particle1.velocity - particle2.velocity;
+
+        float velocityAlongNormal = Vector2.Dot(relativeVelocity, normal);
+
+        if (velocityAlongNormal > 0) return; // They are moving away from each other
+
+        // Elastic collision: coefficient of restitution = 1
+        float massSum = particle1.mass + particle2.mass;
+        float impulseMagnitude = (2 * velocityAlongNormal) / massSum;
+
+        // Apply impulse
+        particle1.velocity -= (impulseMagnitude * particle2.mass) * normal * particle1.dampingFactor;
+        particle2.velocity += (impulseMagnitude * particle1.mass) * normal * particle2.dampingFactor;
+    }
+
+    void checkParticleCollision(Particle particle1, Particle particle2)
+    {
+        if ((particle1.position - particle2.position).magnitude < (particle1.radius + particle2.radius))
+        {
+
+            correctPositioning(particle1, particle2);
+
+            ElasticCollion(particle1, particle2);
+
+        }
+    }
+
+    void correctPositioning(Particle particle1, Particle particle2)
     {
         Vector2 PX1PX2 = particle1.position - particle2.position;
         Vector2 PX2PX1 = particle2.position - particle1.position;
-        Vector2 PV1PV2 = particle1.velocity - particle2.velocity;
-        Vector2 PV2PV1 = particle2.velocity - particle1.velocity;
 
-        float DotPV1PX2PX1PX2 = (PV1PV2.x * PX1PX2.x) + (PV1PV2.y + PX1PX2.y);
-        float DotPV2PX1PX2PX1 = (PV2PV1.x * PX2PX1.x) + (PV2PV1.y + PX2PX1.y);
+        float SeperationDistance = PX1PX2.magnitude;
+        float RequiredDistance = particle1.radius + particle2.radius;
 
-        float PX1PX2SquareMag = PX1PX2.sqrMagnitude;
+        float MovementDistance = ((RequiredDistance - SeperationDistance)/2);
 
-        Vector2 NewVelParticle1 = particle1.velocity - ((2 * particle2.mass)/(particle1.mass + particle2.mass)) * (DotPV1PX2PX1PX2/PX1PX2SquareMag)*PX1PX2;
-        Vector2 NewVelParticle2 = particle2.velocity - ((2 * particle1.mass)/(particle2.mass + particle1.mass)) * (DotPV2PX1PX2PX1/PX1PX2SquareMag)*PX2PX1;
+        Vector2 NormalisedPX1PX2 = PX1PX2.normalized;
+        Vector2 NormalisedPX2PX1 = PX2PX1.normalized;
 
-        particle1.velocity = NewVelParticle1;
-        particle2.velocity = NewVelParticle2;
+        Vector2 Particle1Movement = NormalisedPX1PX2 * MovementDistance;
+        Vector2 Particle2Movement = NormalisedPX2PX1 * MovementDistance;
+
+        particle1.position += Particle1Movement;
+        particle2.position += Particle2Movement;
+    }
+
+    void checkNumParticles()
+    {
+        if (NumParticles < 0)
+        {
+            NumParticles = 0;
+        }
+        int particlesDiff = NumParticles - particles.Count;
+        if (particlesDiff > 0)
+        {
+            for (int i = 0; i < particlesDiff; i++)
+            {
+                Vector2 pos = Random.insideUnitCircle*5f;
+                Vector2 vel = Random.insideUnitCircle*5f;
+                float rad = Random.Range(0.2f, 2f);
+                particles.Add(new Particle(pos, vel, rad, Random.ColorHSV(), 1, 0.8f));
+            }
+        } else if (particlesDiff < 0)
+        {
+            particles.RemoveRange(particles.Count + particlesDiff, -particlesDiff);
+        }
     }
 
 }

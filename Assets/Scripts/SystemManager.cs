@@ -10,7 +10,7 @@ public class SystemManager : MonoBehaviour
     {
         Vector2 screenBounds = GetScreenBounds();
         particleManager.initialise(screenBounds);
-        particleManager.initialiseParticles(10);
+        particleManager.initialiseParticles(50);
     }
 
     void Update()
